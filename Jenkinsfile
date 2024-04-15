@@ -1,54 +1,45 @@
 pipeline {
   agent any 
-  tools {
-    maven "3.8.5"
-  
+  environment {
+    AWS_ACCOUNT_ID="058264500364"
+    AWS_DEFAULT_REGION="us-east-1"
+    IMAGE_REPO_NAME="tech2102_project_repository_jenkins-pipeline"
+    IMAGE_TAG="latest"
+    REPOSITORY_URI="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/${IMAGE_REPO_NAME}"
   }
   stages {
-    stage('Compile and Clean') { 
+    stage('Logging into AWS ECR') { 
       steps {
-        // Run Maven on a Unix agent.
-      
-        sh "mvn clean compile"
-      }
-    }
-    stage('deploy') { 
-      
-      steps {
-        sh "mvn package"
-      }
-    }
-    stage('Build Docker image'){
-    
-      steps {
-        echo "Hello Java Express"
-        sh 'ls'
-        sh 'docker build -t danielkakiuthi/docker_jenkins_springboot:${BUILD_NUMBER} .'
-      }
-    }
-    stage('Docker Login'){
-      
-      steps {
-          withCredentials([string(credentialsId: 'DockerId', variable: 'Dockerpwd')]) {
-          sh "docker login -u danielkakiuthi -p ${Dockerpwd}"
+        script {
+          sh "aws ecr get-login-password --region ${AWS_DEFAULT_REGION} | docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com"
         }
       }
     }
-    stage('Docker Push'){
+
+    stage('Cloning Git') { 
       steps {
-        sh 'docker push danielkakiuthi/docker_jenkins_springboot:${BUILD_NUMBER}'
+        checkout([$class: 'GitSCM', branches: [[name: '*/main']], doGenerateSubmoduleConfigurations: false, extensions: [], submoduleCfg: [], userRemoteConfigs: [[credentialsId: '', url: 'https://github.com/danielkakiuthi/TECH2102_Project_AwsDockerJenkinsDeploy.git']]])
       }
     }
-    stage('Docker deploy'){
+
+    //Building Docker Images
+    stage('Building image'){
       steps {
-        
-        sh 'docker run -itd -p  8081:8080 danielkakiuthi/docker_jenkins_springboot:${BUILD_NUMBER}'
+        script {
+          dockerImage = docker.build "${IMAGE_REPO_NAME}:${IMAGE_TAG}"
+        }
       }
     }
-    stage('Archving') { 
+
+    //Uploading Docker Images into AWS ECR
+    stage('Pushing to ECR'){
       steps {
-        archiveArtifacts '**/target/*.jar'
+        script {
+          sh "docker tag ${IMAGE_REPO_NAME}:${IMAGE_TAG} ${REPOSITORY_URI}:${IMAGE_TAG}"
+          sh "docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/${IMAGE_REPO_NAME}:${IMAGE_TAG}"
+        }
       }
     }
+    
   }
 }
