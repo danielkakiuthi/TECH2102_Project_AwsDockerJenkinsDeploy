@@ -6,6 +6,8 @@ pipeline {
     IMAGE_REPO_NAME="tech2102_project_repository_jenkins-pipeline"
     IMAGE_TAG="latest"
     REPOSITORY_URI="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/${IMAGE_REPO_NAME}"
+    ECS_CLUSTER_NAME="TECH2102_Project_Cluster"
+    ECS_SERVICE_NAME="TECH2102_Project_Service"
   }
   stages {
     stage('Logging into AWS ECR') { 
@@ -41,5 +43,13 @@ pipeline {
       }
     }
     
+    //Update Container on new Image
+    stage('Update Container in ECS'){
+      steps {
+        script {
+          aws ecs update-service --cluster ${ECS_CLUSTER_NAME} --service ${ECS_SERVICE_NAME} --force-new-deployment
+        }
+      }
+    }
   }
 }
