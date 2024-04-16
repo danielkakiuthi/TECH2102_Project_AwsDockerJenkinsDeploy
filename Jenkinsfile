@@ -47,7 +47,7 @@ pipeline {
     stage('Update Container in ECS'){
       steps {
         script {
-          aws ecs update-service --cluster ${ECS_CLUSTER_NAME} --service ${ECS_SERVICE_NAME} --force-new-deployment
+          sh "aws ecs update-service --cluster ${ECS_CLUSTER_NAME} --service ${ECS_SERVICE_NAME} --force-new-deployment"
         }
       }
     }
